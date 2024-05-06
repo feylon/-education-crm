@@ -1,0 +1,115 @@
+export enum RoleName {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
+  MANAGER = 'MANAGER',
+  TEACHER = 'TEACHER',
+  CASHIER = 'CASHIER',
+  STUDENT = 'STUDENT',
+}
+
+export enum StudentStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  GRADUATED = 'GRADUATED',
+  DROPPED = 'DROPPED',
+}
+
+export enum Gender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+}
+
+export enum TeacherStatus {
+  ACTIVE = 'ACTIVE',
+  ON_LEAVE = 'ON_LEAVE',
+  TERMINATED = 'TERMINATED',
+}
+
+export enum SalaryType {
+  FIXED = 'FIXED',
+  PERCENT = 'PERCENT',
+  PER_LESSON = 'PER_LESSON',
+}
+
+export enum CourseStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+}
+
+export enum GroupStatus {
+  ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum EnrollmentStatus {
+  ACTIVE = 'ACTIVE',
+  LEFT = 'LEFT',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum LessonStatus {
+  PLANNED = 'PLANNED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum AttendanceStatus {
+  PRESENT = 'PRESENT',
+  ABSENT = 'ABSENT',
+  LATE = 'LATE',
+  EXCUSED = 'EXCUSED',
+}
+
+export enum PaymentMethod {
+  CASH = 'CASH',
+  CARD = 'CARD',
+  BANK_TRANSFER = 'BANK_TRANSFER',
+  CONTRACT = 'CONTRACT',
+}
+
+export enum PaymentStatus {
+  COMPLETED = 'COMPLETED',
+  REFUNDED = 'REFUNDED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum InvoiceStatus {
+  PENDING = 'PENDING',
+  PARTIALLY_PAID = 'PARTIALLY_PAID',
+  PAID = 'PAID',
+  OVERDUE = 'OVERDUE',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum NotificationType {
+  PAYMENT_RECEIVED = 'PAYMENT_RECEIVED',
+  PAYMENT_REMINDER = 'PAYMENT_REMINDER',
+  DEBT_REMINDER = 'DEBT_REMINDER',
+  ATTENDANCE_MARKED = 'ATTENDANCE_MARKED',
+  STUDENT_CREATED = 'STUDENT_CREATED',
+  GROUP_CHANGED = 'GROUP_CHANGED',
+  GROUP_ENROLLMENT = 'GROUP_ENROLLMENT',
+  INVOICE_CREATED = 'INVOICE_CREATED',
+  SYSTEM = 'SYSTEM',
+}
+
+export enum SortOrder {
+  ASC = 'ASC',
+  DESC = 'DESC',
+}
+
+export enum AuditAction {
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  LOGIN = 'LOGIN',
+  LOGOUT = 'LOGOUT',
+  ASSIGN = 'ASSIGN',
+  UNASSIGN = 'UNASSIGN',
+  MARK_ATTENDANCE = 'MARK_ATTENDANCE',
+  PAYMENT = 'PAYMENT',
+  REFUND = 'REFUND',
+  GENERATE = 'GENERATE',
+}
