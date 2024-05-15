@@ -6,3 +6,4 @@ export * from './rpc';
 export * from './utils';
 export * from './config';
 export * from './audit';
+export * from './domain';
