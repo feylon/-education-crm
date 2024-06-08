@@ -36,7 +36,7 @@ export class RpcClientService {
         error.statusCode,
       );
     }
-    const message = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : JSON.stringify(error);
     this.logger.error(`RPC failure for pattern ${pattern}: ${message}`);
     return new HttpException({ statusCode: 500, message: 'Internal server error' }, 500);
   }
