@@ -1,0 +1,214 @@
+import { AuditPublisher } from '@app/common/audit';
+import { EVENTS } from '@app/common/constants';
+import { CreateGroupDto, GroupQueryDto, LookupQueryDto, UpdateGroupDto } from '@app/common/dto';
+import { AuditAction, EnrollmentStatus, GroupStatus } from '@app/common/enums';
+import { Paginated, RequestMeta } from '@app/common/interfaces';
+import { RpcBadRequestException, RpcClientService, RpcForbiddenException, RpcNotFoundException } from '@app/common/rpc';
+import { applySorting, isStudentScoped, isTeacherScoped, paginateQuery, translateDatabaseError } from '@app/common/utils';
+import { Course, Group, GroupStudent, Room, Student, Teacher } from '@app/database';
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
+
+const SORTABLE = ['createdAt', 'name', 'startDate', 'endDate', 'status', 'monthlyFee'];
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+
+@Injectable()
+export class GroupsService {
+  constructor(
+    @InjectRepository(Group) private readonly groups: Repository<Group>,
+    @InjectRepository(GroupStudent) private readonly enrollments: Repository<GroupStudent>,
+    @InjectRepository(Course) private readonly courses: Repository<Course>,
+    @InjectRepository(Teacher) private readonly teachers: Repository<Teacher>,
+    @InjectRepository(Room) private readonly rooms: Repository<Room>,
+    @InjectRepository(Student) private readonly students: Repository<Student>,
+    private readonly audit: AuditPublisher,
+    private readonly rpc: RpcClientService,
+  ) {}
+
+  async findAll(query: GroupQueryDto, meta: RequestMeta): Promise<Paginated<Group>> {
+    const qb = this.baseQuery();
+    if (query.search) {
+      qb.andWhere('(group.name ILIKE :search OR course.name ILIKE :search)', { search: `%${query.search}%` });
+    }
+    if (query.status) qb.andWhere('group.status = :status', { status: query.status });
+    if (query.courseId) qb.andWhere('group.courseId = :courseId', { courseId: query.courseId });
+    if (query.teacherId) qb.andWhere('group.teacherId = :teacherId', { teacherId: query.teacherId });
+    if (query.branchId) qb.andWhere('group.branchId = :branchId', { branchId: query.branchId });
+    await this.applyScope(qb, meta);
+    applySorting(qb, 'group', query, SORTABLE);
+    return paginateQuery(qb, query);
+  }
+
+  async lookup(query: LookupQueryDto, meta: RequestMeta): Promise<Group[]> {
+    const qb = this.groups
+      .createQueryBuilder('group')
+      .leftJoinAndSelect('group.course', 'course')
+      .where('group.status IN (:...statuses)', { statuses: [GroupStatus.ACTIVE, GroupStatus.PAUSED] })
+      .orderBy('group.name', 'ASC')
+      .take(30);
+    if (query.search) {
+      qb.andWhere('group.name ILIKE :search', { search: `%${query.search}%` });
+    }
+    await this.applyScope(qb, meta);
+    return qb.getMany();
+  }
+
+  async findOne(id: string, meta: RequestMeta): Promise<Group> {
+    const qb = this.baseQuery()
+      .leftJoinAndSelect('group.schedules', 'schedule')
+      .leftJoinAndSelect('schedule.room', 'scheduleRoom')
+      .where('group.id = :id', { id });
+    await this.applyScope(qb, meta);
+    const group = await qb.getOne();
+    if (!group) {
+      throw new RpcNotFoundException('Group not found');
+    }
+    return group;
+  }
+
+  async create(dto: CreateGroupDto, meta: RequestMeta): Promise<Group> {
+    const course = await this.courses.findOne({ where: { id: dto.courseId } });
+    if (!course) {
+      throw new RpcBadRequestException('Course does not exist');
+    }
+    await this.assertReferences(dto);
+    const group = await this.groups
+      .save(
+        this.groups.create({
+          name: dto.name,
+          courseId: dto.courseId,
+          teacherId: dto.teacherId ?? null,
+          roomId: dto.roomId ?? null,
+          branchId: dto.branchId ?? null,
+          startDate: dto.startDate,
+          endDate: dto.endDate ?? null,
+          monthlyFee: dto.monthlyFee ?? course.price,
+          capacity: dto.capacity ?? 12,
+          status: dto.status ?? GroupStatus.ACTIVE,
+          description: dto.description ?? null,
+        }),
+      )
+      .catch(translateDatabaseError);
+    this.audit.publish(meta, AuditAction.CREATE, 'Group', group.id, null, this.snapshot(group));
+    this.rpc.emit(EVENTS.GROUP_CREATED, { groupId: group.id, name: group.name, teacherId: group.teacherId, createdBy: meta.userId });
+    return this.findOne(group.id, meta);
+  }
+
+  async update(id: string, dto: UpdateGroupDto, meta: RequestMeta): Promise<Group> {
+    if (!dto || Object.keys(dto).length === 0) {
+      throw new RpcBadRequestException('Nothing to update');
+    }
+    const group = await this.groups.findOne({ where: { id } });
+    if (!group) {
+      throw new RpcNotFoundException('Group not found');
+    }
+    await this.assertReferences(dto);
+    if (dto.courseId && dto.courseId !== group.courseId) {
+      const exists = await this.courses.exist({ where: { id: dto.courseId } });
+      if (!exists) {
+        throw new RpcBadRequestException('Course does not exist');
+      }
+    }
+    const before = this.snapshot(group);
+    Object.assign(group, {
+      ...dto,
+      teacherId: dto.teacherId === undefined ? group.teacherId : dto.teacherId,
+      roomId: dto.roomId === undefined ? group.roomId : dto.roomId,
+      branchId: dto.branchId === undefined ? group.branchId : dto.branchId,
+      endDate: dto.endDate === undefined ? group.endDate : dto.endDate,
+      description: dto.description === undefined ? group.description : dto.description,
+    });
+    const saved = await this.groups.save(group).catch(translateDatabaseError);
+    this.audit.publish(meta, AuditAction.UPDATE, 'Group', id, before, this.snapshot(saved));
+    this.rpc.emit(EVENTS.GROUP_UPDATED, {
+      groupId: id,
+      name: saved.name,
+      teacherId: saved.teacherId,
+      previousTeacherId: before.teacherId,
+      changes: Object.keys(dto),
+      updatedBy: meta.userId,
+    });
+    return this.findOne(id, meta);
+  }
+
+  async remove(id: string, meta: RequestMeta): Promise<{ deleted: boolean }> {
+    const group = await this.groups.findOne({ where: { id } });
+    if (!group) {
+      throw new RpcNotFoundException('Group not found');
+    }
+    const active = await this.enrollments.count({ where: { groupId: id, status: EnrollmentStatus.ACTIVE } });
+    if (active > 0) {
+      throw new RpcBadRequestException('Group still has active students');
+    }
+    await this.groups.softRemove(group);
+    this.audit.publish(meta, AuditAction.DELETE, 'Group', id, this.snapshot(group), null);
+    return { deleted: true };
+  }
+
+  async resolveTeacherId(meta: RequestMeta): Promise<string | null> {
+    const teacher = await this.teachers.findOne({ where: { userId: meta.userId } });
+    return teacher?.id ?? null;
+  }
+
+  async assertCanAccess(groupId: string, meta: RequestMeta): Promise<Group> {
+    return this.findOne(groupId, meta);
+  }
+
+  private baseQuery(): SelectQueryBuilder<Group> {
+    return this.groups
+      .createQueryBuilder('group')
+      .leftJoinAndSelect('group.course', 'course')
+      .leftJoinAndSelect('group.teacher', 'teacher')
+      .leftJoinAndSelect('group.room', 'room')
+      .leftJoinAndSelect('group.branch', 'branch')
+      .loadRelationCountAndMap('group.studentsCount', 'group.enrollments', 'activeEnrollment', (sub) =>
+        sub.andWhere('activeEnrollment.status = :enrolledStatus', { enrolledStatus: EnrollmentStatus.ACTIVE }),
+      );
+  }
+
+  private async applyScope(qb: SelectQueryBuilder<Group>, meta: RequestMeta): Promise<void> {
+    if (isTeacherScoped(meta)) {
+      qb.andWhere('group.teacherId = :scopedTeacherId', { scopedTeacherId: (await this.resolveTeacherId(meta)) ?? NIL_UUID });
+    } else if (isStudentScoped(meta)) {
+      const student = await this.students.findOne({ where: { userId: meta.userId } });
+      qb.andWhere('EXISTS (SELECT 1 FROM group_students gs WHERE gs."groupId" = group.id AND gs."studentId" = :scopedStudentId)', {
+        scopedStudentId: student?.id ?? NIL_UUID,
+      });
+    }
+  }
+
+  private async assertReferences(dto: Partial<CreateGroupDto>): Promise<void> {
+    if (dto.teacherId) {
+      const exists = await this.teachers.exist({ where: { id: dto.teacherId } });
+      if (!exists) throw new RpcBadRequestException('Teacher does not exist');
+    }
+    if (dto.roomId) {
+      const exists = await this.rooms.exist({ where: { id: dto.roomId } });
+      if (!exists) throw new RpcBadRequestException('Room does not exist');
+    }
+    if (dto.startDate && dto.endDate && dto.endDate < dto.startDate) {
+      throw new RpcBadRequestException('End date must be after start date');
+    }
+  }
+
+  private snapshot(group: Group): Record<string, unknown> & { teacherId: string | null } {
+    return {
+      name: group.name,
+      courseId: group.courseId,
+      teacherId: group.teacherId,
+      roomId: group.roomId,
+      startDate: group.startDate,
+      endDate: group.endDate,
+      monthlyFee: group.monthlyFee,
+      capacity: group.capacity,
+      status: group.status,
+    };
+  }
+
+  assertStaffOnly(meta: RequestMeta): void {
+    if (isTeacherScoped(meta) || isStudentScoped(meta)) {
+      throw new RpcForbiddenException('Only staff can manage enrollments');
+    }
+  }
+}
