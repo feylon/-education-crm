@@ -9,6 +9,10 @@ import { AllExceptionsFilter, JwtAuthGuard, JwtStrategy, PermissionsGuard, Respo
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
+import { StudentsModule } from './modules/students/students.module';
+import { TeachersModule } from './modules/teachers/teachers.module';
+import { CoursesModule } from './modules/courses/courses.module';
+import { GroupsModule } from './modules/groups/groups.module';
 
 @Module({
   imports: [
@@ -25,6 +29,10 @@ import { UsersModule } from './modules/users/users.module';
     HealthModule,
     AuthModule,
     UsersModule,
+    StudentsModule,
+    TeachersModule,
+    CoursesModule,
+    GroupsModule,
   ],
   providers: [
     JwtStrategy,
