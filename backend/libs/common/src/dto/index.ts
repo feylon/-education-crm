@@ -6,3 +6,6 @@ export * from './student.dto';
 export * from './teacher.dto';
 export * from './course.dto';
 export * from './group.dto';
+export * from './schedule.dto';
+export * from './attendance.dto';
+export * from './payment.dto';

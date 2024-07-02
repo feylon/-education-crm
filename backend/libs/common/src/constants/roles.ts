@@ -75,7 +75,15 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
   },
   {
     name: RoleName.STUDENT,
-    description: 'Views own profile, attendance and payments',
-    permissions: ['notifications.read'],
+    description: 'Views own profile, attendance, schedule and payments',
+    permissions: [
+      'groups.read',
+      'schedules.read',
+      'lessons.read',
+      'attendance.read',
+      'payments.read',
+      'invoices.read',
+      'notifications.read',
+    ],
   },
 ];
