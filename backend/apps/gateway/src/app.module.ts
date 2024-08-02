@@ -13,6 +13,9 @@ import { StudentsModule } from './modules/students/students.module';
 import { TeachersModule } from './modules/teachers/teachers.module';
 import { CoursesModule } from './modules/courses/courses.module';
 import { GroupsModule } from './modules/groups/groups.module';
+import { SchedulesModule } from './modules/schedules/schedules.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -33,6 +36,9 @@ import { GroupsModule } from './modules/groups/groups.module';
     TeachersModule,
     CoursesModule,
     GroupsModule,
+    SchedulesModule,
+    AttendanceModule,
+    PaymentsModule,
   ],
   providers: [
     JwtStrategy,
