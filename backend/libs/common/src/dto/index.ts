@@ -9,3 +9,6 @@ export * from './group.dto';
 export * from './schedule.dto';
 export * from './attendance.dto';
 export * from './payment.dto';
+export * from './notification.dto';
+export * from './report.dto';
+export * from './file.dto';
