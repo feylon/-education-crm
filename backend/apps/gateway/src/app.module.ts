@@ -16,6 +16,10 @@ import { GroupsModule } from './modules/groups/groups.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { FilesModule } from './modules/files/files.module';
+import { WebsocketModule } from './websocket/websocket.module';
 
 @Module({
   imports: [
@@ -39,6 +43,10 @@ import { PaymentsModule } from './modules/payments/payments.module';
     SchedulesModule,
     AttendanceModule,
     PaymentsModule,
+    NotificationsModule,
+    ReportsModule,
+    FilesModule,
+    WebsocketModule,
   ],
   providers: [
     JwtStrategy,
