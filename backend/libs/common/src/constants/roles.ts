@@ -19,7 +19,7 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
   {
     name: RoleName.ADMIN,
     description: 'Administrative access without role management',
-    permissions: PERMISSION_CODES.filter((code) => !code.startsWith('roles.')),
+    permissions: PERMISSION_CODES.filter((code) => !code.startsWith('roles.') || code === 'roles.read'),
   },
   {
     name: RoleName.MANAGER,
