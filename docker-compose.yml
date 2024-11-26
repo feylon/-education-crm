@@ -1,0 +1,205 @@
+x-backend-env: &backend-env
+  NODE_ENV: ${NODE_ENV:-production}
+  LOG_LEVEL: ${LOG_LEVEL:-log}
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+  POSTGRES_DB: ${POSTGRES_DB:-education_crm}
+  POSTGRES_SSL: "false"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+  JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-access-secret}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-to-a-long-random-refresh-secret}
+  JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+  JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+  HEALTH_PORT: "3001"
+
+x-backend-service: &backend-service
+  image: education-crm-backend:latest
+  restart: unless-stopped
+  environment:
+    <<: *backend-env
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    migrator:
+      condition: service_completed_successfully
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+    interval: 15s
+    timeout: 5s
+    retries: 10
+    start_period: 20s
+  networks:
+    - crm
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: crm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-education_crm}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-education_crm}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - crm
+
+  redis:
+    image: redis:7-alpine
+    container_name: crm-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - crm
+
+  migrator:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: education-crm-backend:latest
+    container_name: crm-migrator
+    restart: "no"
+    command: ["node", "dist/apps/migrator/src/main.js", "all"]
+    environment:
+      <<: *backend-env
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - crm
+
+  gateway:
+    <<: *backend-service
+    container_name: crm-gateway
+    command: ["node", "dist/apps/gateway/src/main.js"]
+    environment:
+      <<: *backend-env
+      GATEWAY_PORT: "3000"
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
+      THROTTLE_TTL: ${THROTTLE_TTL:-60}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-120}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-5}
+    ports:
+      - "${GATEWAY_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  auth-service:
+    <<: *backend-service
+    container_name: crm-auth-service
+    command: ["node", "dist/apps/auth-service/src/main.js"]
+
+  user-service:
+    <<: *backend-service
+    container_name: crm-user-service
+    command: ["node", "dist/apps/user-service/src/main.js"]
+
+  student-service:
+    <<: *backend-service
+    container_name: crm-student-service
+    command: ["node", "dist/apps/student-service/src/main.js"]
+
+  teacher-service:
+    <<: *backend-service
+    container_name: crm-teacher-service
+    command: ["node", "dist/apps/teacher-service/src/main.js"]
+
+  course-service:
+    <<: *backend-service
+    container_name: crm-course-service
+    command: ["node", "dist/apps/course-service/src/main.js"]
+
+  group-service:
+    <<: *backend-service
+    container_name: crm-group-service
+    command: ["node", "dist/apps/group-service/src/main.js"]
+
+  schedule-service:
+    <<: *backend-service
+    container_name: crm-schedule-service
+    command: ["node", "dist/apps/schedule-service/src/main.js"]
+
+  attendance-service:
+    <<: *backend-service
+    container_name: crm-attendance-service
+    command: ["node", "dist/apps/attendance-service/src/main.js"]
+
+  payment-service:
+    <<: *backend-service
+    container_name: crm-payment-service
+    command: ["node", "dist/apps/payment-service/src/main.js"]
+
+  notification-service:
+    <<: *backend-service
+    container_name: crm-notification-service
+    command: ["node", "dist/apps/notification-service/src/main.js"]
+    environment:
+      <<: *backend-env
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_ENABLED: ${TELEGRAM_BOT_ENABLED:-false}
+
+  report-service:
+    <<: *backend-service
+    container_name: crm-report-service
+    command: ["node", "dist/apps/report-service/src/main.js"]
+
+  file-service:
+    <<: *backend-service
+    container_name: crm-file-service
+    command: ["node", "dist/apps/file-service/src/main.js"]
+    environment:
+      <<: *backend-env
+      FILE_STORAGE_PATH: /data/uploads
+    volumes:
+      - uploads_data:/data/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: education-crm-frontend:latest
+    container_name: crm-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - crm
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+
+networks:
+  crm:
+    driver: bridge
