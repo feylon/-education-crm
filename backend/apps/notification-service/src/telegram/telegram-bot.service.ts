@@ -13,6 +13,11 @@ const normalizePhone = (phone: string): string => {
 
 const formatMoney = (value: number): string => `${Math.round(value).toLocaleString('ru-RU')} so'm`;
 
+const escapeHtml = (value: string): string => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+export const isOwnContact = (message: Pick<TelegramMessage, 'contact' | 'from'>): boolean =>
+  Boolean(message.contact && message.from && message.contact.user_id === message.from.id);
+
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TelegramBotService.name);
@@ -61,6 +66,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
   private async handle(message: TelegramMessage): Promise<void> {
     const chatId = String(message.chat.id);
     if (message.contact) {
+      if (!isOwnContact(message)) {
+        await this.api.sendMessage(chatId, "❌ Faqat o'zingizning telefon raqamingizni yuboring (pastdagi tugma orqali).");
+        return;
+      }
       await this.link(chatId, message.contact.phone_number);
       return;
     }
@@ -107,15 +116,15 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     const names: string[] = [];
     if (user) {
       await this.users.update(user.id, { telegramChatId: chatId });
-      names.push(`${user.firstName} ${user.lastName} (xodim)`);
+      names.push(escapeHtml(`${user.firstName} ${user.lastName}`) + ' (xodim)');
     }
     if (student) {
       await this.students.update(student.id, { telegramChatId: chatId });
-      names.push(`${student.lastName} ${student.firstName} (o'quvchi)`);
+      names.push(escapeHtml(`${student.lastName} ${student.firstName}`) + " (o'quvchi)");
     }
     if (parent) {
       await this.parents.update(parent.id, { telegramChatId: chatId });
-      names.push(`${parent.fullName} (${parent.student.lastName} ${parent.student.firstName} ota-onasi)`);
+      names.push(escapeHtml(`${parent.fullName} (${parent.student.lastName} ${parent.student.firstName} ota-onasi)`));
     }
     await this.api.sendMessage(
       chatId,
@@ -147,7 +156,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       const paid = roundMoney(active.reduce((sum, invoice) => sum + invoice.paidAmount, 0));
       const { debt } = computeBalance(paid, invoiced);
       const open = active.filter((invoice) => invoice.amount > invoice.paidAmount);
-      lines.push(`👤 <b>${student.lastName} ${student.firstName}</b>`);
+      lines.push(`👤 <b>${escapeHtml(`${student.lastName} ${student.firstName}`)}</b>`);
       lines.push(`Jami hisoblangan: ${formatMoney(invoiced)}`);
       lines.push(`To'langan: ${formatMoney(paid)}`);
       lines.push(debt > 0 ? `⚠️ Qarzdorlik: <b>${formatMoney(debt)}</b> (${open.length} ta invoys)` : '✅ Qarzdorlik yo\'q');
