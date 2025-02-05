@@ -4,7 +4,7 @@ import { AuditAction, RoleName } from '@app/common/enums';
 import { Paginated, RequestMeta } from '@app/common/interfaces';
 import { RpcBadRequestException, RpcForbiddenException, RpcNotFoundException } from '@app/common/rpc';
 import { applySorting, paginateQuery, translateDatabaseError } from '@app/common/utils';
-import { Role, User } from '@app/database';
+import { RefreshToken, Role, User } from '@app/database';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -17,6 +17,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(Role) private readonly roles: Repository<Role>,
+    @InjectRepository(RefreshToken) private readonly refreshTokens: Repository<RefreshToken>,
     private readonly audit: AuditPublisher,
   ) {}
 
@@ -67,12 +68,14 @@ export class UsersService {
 
   async update(id: string, dto: UpdateUserDto, meta: RequestMeta): Promise<User> {
     const user = await this.findOne(id);
+    this.assertCanManage(user, meta);
     const before = this.snapshot(user);
     if (dto.roleIds) {
       user.roles = await this.resolveRoles(dto.roleIds, meta);
     }
     if (dto.password) {
       user.passwordHash = await bcrypt.hash(dto.password, 10);
+      await this.refreshTokens.update({ userId: id }, { revokedAt: new Date() });
     }
     if (dto.email) user.email = dto.email.toLowerCase();
     if (dto.firstName) user.firstName = dto.firstName;
@@ -94,7 +97,9 @@ export class UsersService {
       throw new RpcBadRequestException('You cannot delete your own account');
     }
     const user = await this.findOne(id);
+    this.assertCanManage(user, meta);
     await this.users.softRemove(user);
+    await this.refreshTokens.update({ userId: id }, { revokedAt: new Date() });
     this.audit.publish(meta, AuditAction.DELETE, 'User', id, this.snapshot(user), null);
     return { deleted: true };
   }
@@ -109,6 +114,13 @@ export class UsersService {
       throw new RpcForbiddenException('Only a super admin can assign the SUPER_ADMIN role');
     }
     return roles;
+  }
+
+  private assertCanManage(target: User, meta: RequestMeta): void {
+    const targetIsSuperAdmin = (target.roles ?? []).some((role) => role.name === RoleName.SUPER_ADMIN);
+    if (targetIsSuperAdmin && !meta.roles.includes(RoleName.SUPER_ADMIN)) {
+      throw new RpcForbiddenException('Only a super admin can manage a SUPER_ADMIN account');
+    }
   }
 
   private snapshot(user: User): Record<string, unknown> {

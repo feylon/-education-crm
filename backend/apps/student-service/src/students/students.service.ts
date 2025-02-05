@@ -5,7 +5,7 @@ import { AuditAction, EnrollmentStatus, RoleName } from '@app/common/enums';
 import { Paginated, RequestMeta } from '@app/common/interfaces';
 import { RpcBadRequestException, RpcClientService, RpcForbiddenException, RpcNotFoundException } from '@app/common/rpc';
 import { applySorting, isStudentScoped, isTeacherScoped, paginateQuery, translateDatabaseError } from '@app/common/utils';
-import { Parent, Role, Student, Teacher, User } from '@app/database';
+import { Parent, RefreshToken, Role, Student, Teacher, User } from '@app/database';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -117,17 +117,25 @@ export class StudentsService {
       await this.dataSource.transaction(async (manager) => {
         if (student.userId) {
           await manager.getRepository(User).update(student.userId, { passwordHash: await bcrypt.hash(accountPassword, 10) });
+          await manager.getRepository(RefreshToken).update({ userId: student.userId }, { revokedAt: new Date() });
         } else {
           const user = await this.createAccount(manager.getRepository(User), manager.getRepository(Role), student, accountPassword);
           student.userId = user.id;
         }
       });
     }
-    if (parents) {
-      student.parents = parents.map((parent) => this.toParent(parent));
-      await this.parents.delete({ studentId: id });
-    }
-    const saved = await this.students.save(student).catch(translateDatabaseError);
+    const saved = await this.dataSource
+      .transaction(async (manager) => {
+        if (parents) {
+          await manager.getRepository(Parent).delete({ studentId: id });
+          student.parents = parents.map((parent) => this.toParent(parent));
+        }
+        if (student.userId && fields.email) {
+          await manager.getRepository(User).update(student.userId, { email: fields.email.toLowerCase() });
+        }
+        return manager.getRepository(Student).save(student);
+      })
+      .catch(translateDatabaseError);
     this.audit.publish(meta, AuditAction.UPDATE, 'Student', id, before, this.snapshot(saved));
     this.rpc.emit(EVENTS.STUDENT_UPDATED, { studentId: id, updatedBy: meta.userId });
     return this.findOne(id, meta);

@@ -5,7 +5,7 @@ import { AuditAction, GroupStatus, RoleName, TeacherStatus } from '@app/common/e
 import { Paginated, RequestMeta } from '@app/common/interfaces';
 import { RpcBadRequestException, RpcClientService, RpcForbiddenException, RpcNotFoundException } from '@app/common/rpc';
 import { applySorting, isTeacherScoped, paginateQuery, translateDatabaseError } from '@app/common/utils';
-import { Group, Role, Teacher, User } from '@app/database';
+import { Group, RefreshToken, Role, Teacher, User } from '@app/database';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -137,6 +137,9 @@ export class TeachersService {
         if (fields.status) userPatch.isActive = fields.status !== TeacherStatus.TERMINATED;
         if (Object.keys(userPatch).length > 0) {
           await manager.getRepository(User).update(teacher.userId, userPatch);
+        }
+        if (password || fields.status === TeacherStatus.TERMINATED) {
+          await manager.getRepository(RefreshToken).update({ userId: teacher.userId }, { revokedAt: new Date() });
         }
         Object.assign(teacher, fields);
         await manager.getRepository(Teacher).save(teacher);
