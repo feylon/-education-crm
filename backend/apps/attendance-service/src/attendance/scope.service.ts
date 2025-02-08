@@ -51,6 +51,29 @@ export class ScopeService {
     return group;
   }
 
+  async assertGroupReadAccess(groupId: string, meta: RequestMeta): Promise<void> {
+    if (isTeacherScoped(meta)) {
+      const group = await this.groups.findOne({ where: { id: groupId } });
+      if (!group || group.teacherId !== (await this.teacherId(meta))) {
+        throw new RpcForbiddenException('You can only view your own groups');
+      }
+    } else if (isStudentScoped(meta)) {
+      const studentId = (await this.studentId(meta)) ?? NIL_UUID;
+      const enrolled = await this.groups
+        .createQueryBuilder('group')
+        .innerJoin('group.enrollments', 'enrollment', 'enrollment.studentId = :studentId', { studentId })
+        .where('group.id = :groupId', { groupId })
+        .getCount();
+      if (!enrolled) {
+        throw new RpcForbiddenException('You are not enrolled in this group');
+      }
+    }
+  }
+
+  async ownStudentFilter(meta: RequestMeta): Promise<string | null> {
+    return isStudentScoped(meta) ? ((await this.studentId(meta)) ?? NIL_UUID) : null;
+  }
+
   async assertStudentAccess(studentId: string, meta: RequestMeta): Promise<void> {
     if (isStudentScoped(meta) && (await this.studentId(meta)) !== studentId) {
       throw new RpcForbiddenException('You can only view your own attendance');

@@ -7,7 +7,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { NIL_UUID, ScopeService } from './scope.service';
-import { isTeacherScoped } from '@app/common/utils';
+import { isStudentScoped, isTeacherScoped } from '@app/common/utils';
+import { RpcForbiddenException } from '@app/common/rpc';
 
 export interface MonthlyPoint {
   month: string;
@@ -42,8 +43,12 @@ export class AttendanceStatisticsService {
   }
 
   async forGroup(groupId: string, query: AttendanceStatsQueryDto, meta: RequestMeta): Promise<AttendanceSummary & { byStudent: StudentBreakdown[] }> {
+    await this.scope.assertGroupReadAccess(groupId, meta);
+    const ownStudentId = await this.scope.ownStudentFilter(meta);
     const qb = this.rangeQuery(query).andWhere('lesson.groupId = :groupId', { groupId });
-    await this.scope.applyGroupScope(qb, 'group', meta);
+    if (ownStudentId) {
+      qb.andWhere('record.studentId = :ownStudentId', { ownStudentId });
+    }
     const rows = await qb
       .innerJoin('record.student', 'student')
       .select(['record.status AS status', 'student.id AS "studentId"', 'student.firstName AS "firstName"', 'student.lastName AS "lastName"'])
@@ -63,6 +68,9 @@ export class AttendanceStatisticsService {
   }
 
   async forTeacher(teacherId: string, query: AttendanceStatsQueryDto, meta: RequestMeta): Promise<AttendanceSummary & { byGroup: GroupBreakdown[]; lessons: number }> {
+    if (isStudentScoped(meta)) {
+      throw new RpcForbiddenException('Students cannot view teacher statistics');
+    }
     const effectiveTeacherId = isTeacherScoped(meta) ? ((await this.scope.teacherId(meta)) ?? NIL_UUID) : teacherId;
     const qb = this.rangeQuery(query).andWhere('lesson.teacherId = :teacherId', { teacherId: effectiveTeacherId });
     const rows = await qb

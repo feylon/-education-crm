@@ -5,10 +5,10 @@ import { AuditAction, EnrollmentStatus, GroupStatus, StudentStatus } from '@app/
 import { Paginated, RequestMeta } from '@app/common/interfaces';
 import { RpcBadRequestException, RpcClientService, RpcNotFoundException } from '@app/common/rpc';
 import { applySorting, paginateQuery, toDateOnly, translateDatabaseError } from '@app/common/utils';
-import { GroupStudent, Student } from '@app/database';
+import { Group, GroupStudent, Student } from '@app/database';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { GroupsService } from './groups.service';
 
 @Injectable()
@@ -17,11 +17,13 @@ export class EnrollmentsService {
     @InjectRepository(GroupStudent) private readonly enrollments: Repository<GroupStudent>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
     private readonly groups: GroupsService,
+    private readonly dataSource: DataSource,
     private readonly audit: AuditPublisher,
     private readonly rpc: RpcClientService,
   ) {}
 
   async list(groupId: string, query: GroupStudentsQueryDto, meta: RequestMeta): Promise<Paginated<GroupStudent>> {
+    this.groups.assertNotStudent(meta);
     await this.groups.assertCanAccess(groupId, meta);
     const qb = this.enrollments
       .createQueryBuilder('enrollment')
@@ -50,21 +52,23 @@ export class EnrollmentsService {
     if (student.status === StudentStatus.DROPPED) {
       throw new RpcBadRequestException('Dropped students cannot be enrolled');
     }
-    const activeCount = await this.enrollments.count({ where: { groupId, status: EnrollmentStatus.ACTIVE } });
-    if (activeCount >= group.capacity) {
-      throw new RpcBadRequestException(`Group is full (capacity ${group.capacity})`);
-    }
-    const existing = await this.enrollments.findOne({ where: { groupId, studentId: dto.studentId } });
-    if (existing?.status === EnrollmentStatus.ACTIVE) {
-      throw new RpcBadRequestException('Student is already enrolled in this group');
-    }
-    const enrollment = existing ?? this.enrollments.create({ groupId, studentId: dto.studentId });
-    enrollment.status = EnrollmentStatus.ACTIVE;
-    enrollment.joinedAt = dto.joinedAt ?? toDateOnly(new Date());
-    enrollment.leftAt = null;
-    enrollment.discountPercent = dto.discountPercent ?? 0;
-    enrollment.notes = dto.notes ?? null;
-    const saved = await this.enrollments.save(enrollment).catch(translateDatabaseError);
+    const saved = await this.dataSource
+      .transaction(async (manager) => {
+        await this.assertCapacity(manager, group.id, group.capacity);
+        const repo = manager.getRepository(GroupStudent);
+        const existing = await repo.findOne({ where: { groupId, studentId: dto.studentId } });
+        if (existing?.status === EnrollmentStatus.ACTIVE) {
+          throw new RpcBadRequestException('Student is already enrolled in this group');
+        }
+        const enrollment = existing ?? repo.create({ groupId, studentId: dto.studentId });
+        enrollment.status = EnrollmentStatus.ACTIVE;
+        enrollment.joinedAt = dto.joinedAt ?? toDateOnly(new Date());
+        enrollment.leftAt = null;
+        enrollment.discountPercent = dto.discountPercent ?? 0;
+        enrollment.notes = dto.notes ?? null;
+        return repo.save(enrollment);
+      })
+      .catch(translateDatabaseError);
     this.audit.publish(meta, AuditAction.ASSIGN, 'GroupStudent', saved.id, null, {
       groupId,
       studentId: dto.studentId,
@@ -88,13 +92,21 @@ export class EnrollmentsService {
     const before = this.snapshot(enrollment);
     if (dto.discountPercent !== undefined) enrollment.discountPercent = dto.discountPercent;
     if (dto.notes !== undefined) enrollment.notes = dto.notes;
-    if (dto.status) {
-      enrollment.status = dto.status;
-      enrollment.leftAt = dto.status === EnrollmentStatus.ACTIVE ? null : (dto.leftAt ?? toDateOnly(new Date()));
-    } else if (dto.leftAt !== undefined) {
-      enrollment.leftAt = dto.leftAt;
-    }
-    const saved = await this.enrollments.save(enrollment);
+    const saved = await this.dataSource.transaction(async (manager) => {
+      if (dto.status && dto.status !== enrollment.status) {
+        if (dto.status === EnrollmentStatus.ACTIVE) {
+          if (enrollment.group.status === GroupStatus.COMPLETED || enrollment.group.status === GroupStatus.CANCELLED) {
+            throw new RpcBadRequestException('Cannot re-activate a student in a completed or cancelled group');
+          }
+          await this.assertCapacity(manager, groupId, enrollment.group.capacity);
+        }
+        enrollment.status = dto.status;
+        enrollment.leftAt = dto.status === EnrollmentStatus.ACTIVE ? null : (dto.leftAt ?? toDateOnly(new Date()));
+      } else if (dto.leftAt !== undefined) {
+        enrollment.leftAt = dto.leftAt;
+      }
+      return manager.getRepository(GroupStudent).save(enrollment);
+    });
     this.audit.publish(meta, AuditAction.UPDATE, 'GroupStudent', enrollmentId, before, this.snapshot(saved));
     return this.enrollments.findOneOrFail({ where: { id: enrollmentId }, relations: { student: true } });
   }
@@ -118,6 +130,14 @@ export class EnrollmentsService {
       actorId: meta.userId,
     });
     return saved;
+  }
+
+  private async assertCapacity(manager: EntityManager, groupId: string, capacity: number): Promise<void> {
+    await manager.getRepository(Group).createQueryBuilder('group').setLock('pessimistic_write').where('group.id = :groupId', { groupId }).getOne();
+    const activeCount = await manager.getRepository(GroupStudent).count({ where: { groupId, status: EnrollmentStatus.ACTIVE } });
+    if (activeCount >= capacity) {
+      throw new RpcBadRequestException(`Group is full (capacity ${capacity})`);
+    }
   }
 
   private async find(groupId: string, enrollmentId: string): Promise<GroupStudent> {

@@ -30,6 +30,7 @@ export class PaymentsController {
   }
 
   @Get('students/:studentId/summary')
+  @RequirePermissions('payments.read')
   @ApiOperation({ summary: 'Student finance summary: paid, invoiced, balance, debt' })
   @ApiOkEnvelope()
   studentSummary(@Param('studentId', ParseUUIDPipe) studentId: string, @Meta() meta: RequestMeta) {
@@ -37,6 +38,7 @@ export class PaymentsController {
   }
 
   @Get('students/:studentId/history')
+  @RequirePermissions('payments.read')
   @ApiOperation({ summary: 'Payment history of a student' })
   @ApiPaginatedEnvelope(PaymentResponseDto)
   studentHistory(@Param('studentId', ParseUUIDPipe) studentId: string, @Query() query: PaymentQueryDto, @Meta() meta: RequestMeta) {

@@ -34,6 +34,35 @@ export class ScopeService {
       if (student?.id !== studentId) {
         throw new RpcForbiddenException('You can only view your own payments');
       }
+    } else if (isTeacherScoped(meta)) {
+      const teacher = await this.teachers.findOne({ where: { userId: meta.userId } });
+      const shared = await this.students
+        .createQueryBuilder('student')
+        .innerJoin('student.enrollments', 'enrollment')
+        .innerJoin('enrollment.group', 'group', 'group.teacherId = :teacherId', { teacherId: teacher?.id ?? NIL_UUID })
+        .where('student.id = :studentId', { studentId })
+        .getCount();
+      if (!shared) {
+        throw new RpcForbiddenException('This student is not in your groups');
+      }
+    }
+  }
+
+  async assertGroupAccess(groupId: string, meta: RequestMeta): Promise<void> {
+    if (isStudentScoped(meta)) {
+      throw new RpcForbiddenException('Students cannot view group finance');
+    }
+    if (isTeacherScoped(meta)) {
+      const teacher = await this.teachers.findOne({ where: { userId: meta.userId } });
+      const owns = await this.teachers.manager
+        .createQueryBuilder()
+        .select('1')
+        .from('groups', 'g')
+        .where('g.id = :groupId AND g."teacherId" = :teacherId', { groupId, teacherId: teacher?.id ?? NIL_UUID })
+        .getRawOne();
+      if (!owns) {
+        throw new RpcForbiddenException('You can only view your own groups');
+      }
     }
   }
 

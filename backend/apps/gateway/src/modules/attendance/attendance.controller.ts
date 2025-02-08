@@ -29,6 +29,7 @@ export class AttendanceController {
   }
 
   @Get('students/:studentId/stats')
+  @RequirePermissions('attendance.read')
   @ApiOperation({ summary: 'Student attendance statistics (students may view their own)' })
   @ApiOkEnvelope()
   studentStats(@Param('studentId', ParseUUIDPipe) studentId: string, @Query() query: AttendanceStatsQueryDto, @Meta() meta: RequestMeta) {
@@ -36,6 +37,7 @@ export class AttendanceController {
   }
 
   @Get('students/:studentId/history')
+  @RequirePermissions('attendance.read')
   @ApiOperation({ summary: 'Student attendance history' })
   @ApiOkEnvelope()
   studentHistory(

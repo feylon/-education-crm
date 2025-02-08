@@ -53,6 +53,7 @@ export class AttendanceService {
 
   async lessonSheet(lessonId: string, meta: RequestMeta): Promise<LessonSheet> {
     const lesson = await this.lessonsService.findOne(lessonId, meta);
+    const ownStudentId = await this.scope.ownStudentFilter(meta);
     const [enrollments, records] = await Promise.all([
       this.enrollments.find({ where: { groupId: lesson.groupId }, relations: { student: true } }),
       this.records.find({ where: { lessonId } }),
@@ -60,6 +61,7 @@ export class AttendanceService {
     const recordByStudent = new Map(records.map((record) => [record.studentId, record]));
     const rows = enrollments
       .filter((enrollment) => enrollment.student !== null)
+      .filter((enrollment) => ownStudentId === null || enrollment.studentId === ownStudentId)
       .filter((enrollment) => enrollment.status === EnrollmentStatus.ACTIVE || recordByStudent.has(enrollment.studentId))
       .filter((enrollment) => enrollment.joinedAt <= lesson.date && (!enrollment.leftAt || enrollment.leftAt >= lesson.date || recordByStudent.has(enrollment.studentId)))
       .map<LessonSheetRow>((enrollment) => ({
@@ -123,6 +125,8 @@ export class AttendanceService {
   }
 
   async groupJournal(groupId: string, from: string | undefined, to: string | undefined, meta: RequestMeta): Promise<GroupJournal> {
+    await this.scope.assertGroupReadAccess(groupId, meta);
+    const ownStudentId = await this.scope.ownStudentFilter(meta);
     const lessonsQb = this.lessons
       .createQueryBuilder('lesson')
       .innerJoin('lesson.group', 'group')
@@ -135,7 +139,7 @@ export class AttendanceService {
     await this.scope.applyGroupScope(lessonsQb, 'group', meta);
     const lessons = await lessonsQb.take(60).getMany();
     const enrollments = (await this.enrollments.find({ where: { groupId }, relations: { student: true }, order: { status: 'ASC' } })).filter(
-      (enrollment) => enrollment.student !== null,
+      (enrollment) => enrollment.student !== null && (ownStudentId === null || enrollment.studentId === ownStudentId),
     );
     const lessonIds = lessons.map((lesson) => lesson.id);
     const records = lessonIds.length

@@ -28,6 +28,7 @@ export class GroupStatisticsService {
   ) {}
 
   async build(groupId: string, meta: RequestMeta): Promise<GroupStatistics> {
+    this.groups.assertNotStudent(meta);
     const group = await this.groups.findOne(groupId, meta);
     const [enrollmentRows, lessonRows, statuses, invoiceRow, paidRow, openInvoices] = await Promise.all([
       this.enrollments

@@ -150,7 +150,8 @@ export class DebtService {
     return toPaginated(items, total, query);
   }
 
-  async groupSummary(groupId: string): Promise<GroupFinanceSummary> {
+  async groupSummary(groupId: string, meta: RequestMeta): Promise<GroupFinanceSummary> {
+    await this.scope.assertGroupAccess(groupId, meta);
     const row = await this.invoices
       .createQueryBuilder('invoice')
       .select('COALESCE(SUM(invoice.amount), 0)', 'invoiced')

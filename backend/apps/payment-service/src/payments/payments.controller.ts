@@ -66,7 +66,7 @@ export class PaymentsController {
 
   @MessagePattern(PAYMENT_PATTERNS.GROUP_SUMMARY)
   groupSummary(@Payload() payload: WithMeta<{ groupId: string }>) {
-    return this.debt.groupSummary(payload.data.groupId);
+    return this.debt.groupSummary(payload.data.groupId, payload.meta);
   }
 
   @MessagePattern(PAYMENT_PATTERNS.INVOICES_FIND_ALL)
