@@ -10,6 +10,7 @@ import { Group, GroupStudent, Invoice, Student } from '@app/database';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository, SelectQueryBuilder } from 'typeorm';
+import { CreditService } from './credit.service';
 import { NumberingService } from './numbering.service';
 import { ScopeService } from './scope.service';
 
@@ -33,6 +34,7 @@ export class InvoicesService {
     @InjectRepository(Group) private readonly groups: Repository<Group>,
     private readonly dataSource: DataSource,
     private readonly numbering: NumberingService,
+    private readonly credit: CreditService,
     private readonly scope: ScopeService,
     private readonly audit: AuditPublisher,
     private readonly rpc: RpcClientService,
@@ -83,7 +85,9 @@ export class InvoicesService {
       : null;
     const invoice = await this.dataSource
       .transaction(async (manager) =>
-        manager.getRepository(Invoice).save(
+        this.credit.applyToInvoice(
+          manager,
+          await manager.getRepository(Invoice).save(
           manager.getRepository(Invoice).create({
             number: await this.numbering.next(manager, 'invoices', 'INV', new Date(periodMonth)),
             studentId: dto.studentId,
@@ -96,6 +100,7 @@ export class InvoicesService {
             status: resolveInvoiceStatus({ amount: dto.amount, paidAmount: 0, dueDate: dto.dueDate, status: InvoiceStatus.PENDING }, toDateOnly(new Date())),
             description: dto.description ?? null,
           }),
+          ),
         ),
       )
       .catch(translateDatabaseError);
@@ -163,16 +168,16 @@ export class InvoicesService {
       qb.andWhere('group.id = :groupId', { groupId: dto.groupId });
     }
     const enrollments = await qb.getMany();
-    const existing = enrollments.length
-      ? await this.invoices.find({
-          where: { enrollmentId: In(enrollments.map((enrollment) => enrollment.id)), periodMonth },
-          select: { enrollmentId: true },
-        })
-      : [];
-    const billed = new Set(existing.map((invoice) => invoice.enrollmentId));
     const created: Invoice[] = [];
+    let billedCount = 0;
     await this.dataSource.transaction(async (manager) => {
+      await this.numbering.lock(manager, `invoices:generate:${periodMonth}`);
       const repo = manager.getRepository(Invoice);
+      const existing = enrollments.length
+        ? await repo.find({ where: { enrollmentId: In(enrollments.map((enrollment) => enrollment.id)), periodMonth }, select: { enrollmentId: true } })
+        : [];
+      const billed = new Set(existing.map((invoice) => invoice.enrollmentId));
+      billedCount = billed.size;
       for (const enrollment of enrollments) {
         if (billed.has(enrollment.id)) {
           continue;
@@ -181,7 +186,9 @@ export class InvoicesService {
         if (amount <= 0) {
           continue;
         }
-        const invoice = await repo.save(
+        const invoice = await this.credit.applyToInvoice(
+          manager,
+          await repo.save(
           repo.create({
             number: await this.numbering.next(manager, 'invoices', 'INV', period),
             studentId: enrollment.studentId,
@@ -194,6 +201,7 @@ export class InvoicesService {
             status: resolveInvoiceStatus({ amount, paidAmount: 0, dueDate, status: InvoiceStatus.PENDING }, toDateOnly(new Date())),
             description: `${enrollment.group.name} fee for ${periodMonth.slice(0, 7)}`,
           }),
+          ),
         );
         invoice.student = enrollment.student;
         created.push(invoice);
@@ -211,7 +219,7 @@ export class InvoicesService {
     return {
       periodMonth,
       created: created.length,
-      skipped: enrollments.length - created.length,
+      skipped: billedCount,
       totalAmount: created.reduce((sum, invoice) => sum + invoice.amount, 0),
     };
   }

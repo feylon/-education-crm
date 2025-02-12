@@ -125,7 +125,8 @@ export class PaymentsService {
     }
     const before = this.snapshot(payment);
     await this.dataSource.transaction(async (manager) => {
-      await this.rollbackAllocations(manager, payment);
+      const locked = await this.lockCompleted(manager, id);
+      await this.rollbackAllocations(manager, locked);
       await manager.getRepository(Payment).update(id, {
         status: PaymentStatus.REFUNDED,
         refundedAt: new Date(),
@@ -155,7 +156,8 @@ export class PaymentsService {
     }
     const before = this.snapshot(payment);
     await this.dataSource.transaction(async (manager) => {
-      await this.rollbackAllocations(manager, payment);
+      const locked = await this.lockCompleted(manager, id);
+      await this.rollbackAllocations(manager, locked);
       await manager.getRepository(Payment).update(id, { status: PaymentStatus.CANCELLED, refundReason: dto.reason });
     });
     this.audit.publish(meta, AuditAction.UPDATE, 'Payment', id, before, { ...before, status: PaymentStatus.CANCELLED, reason: dto.reason });
@@ -185,10 +187,19 @@ export class PaymentsService {
     return qb.getMany();
   }
 
+  private async lockCompleted(manager: EntityManager, id: string): Promise<Payment> {
+    const locked = await manager.getRepository(Payment).findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+    if (!locked || locked.status !== PaymentStatus.COMPLETED) {
+      throw new RpcBadRequestException('Payment has already been refunded or cancelled');
+    }
+    locked.allocations = await manager.getRepository(PaymentAllocation).find({ where: { paymentId: id } });
+    return locked;
+  }
+
   private async rollbackAllocations(manager: EntityManager, payment: Payment): Promise<void> {
     const today = toDateOnly(new Date());
     for (const allocation of payment.allocations ?? []) {
-      const invoice = await manager.getRepository(Invoice).findOne({ where: { id: allocation.invoiceId } });
+      const invoice = await manager.getRepository(Invoice).findOne({ where: { id: allocation.invoiceId }, lock: { mode: 'pessimistic_write' } });
       if (!invoice) {
         continue;
       }

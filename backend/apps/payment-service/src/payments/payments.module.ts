@@ -3,6 +3,7 @@ import { Group, GroupStudent, Invoice, Payment, PaymentAllocation, Student, Teac
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BillingJobs } from './billing.jobs';
+import { CreditService } from './credit.service';
 import { DebtService } from './debt.service';
 import { InvoicesService } from './invoices.service';
 import { NumberingService } from './numbering.service';
@@ -13,6 +14,6 @@ import { ScopeService } from './scope.service';
 @Module({
   imports: [TypeOrmModule.forFeature([Invoice, Payment, PaymentAllocation, Student, GroupStudent, Group, Teacher])],
   controllers: [PaymentsController],
-  providers: [InvoicesService, PaymentsService, DebtService, NumberingService, ScopeService, BillingJobs, AuditPublisher],
+  providers: [InvoicesService, PaymentsService, DebtService, NumberingService, CreditService, ScopeService, BillingJobs, AuditPublisher],
 })
 export class PaymentsModule {}
