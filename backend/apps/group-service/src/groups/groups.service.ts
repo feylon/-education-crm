@@ -5,10 +5,13 @@ import { AuditAction, EnrollmentStatus, GroupStatus } from '@app/common/enums';
 import { Paginated, RequestMeta } from '@app/common/interfaces';
 import { RpcBadRequestException, RpcClientService, RpcForbiddenException, RpcNotFoundException } from '@app/common/rpc';
 import { applySorting, isStudentScoped, isTeacherScoped, paginateQuery, translateDatabaseError } from '@app/common/utils';
-import { Course, Group, GroupStudent, Room, Student, Teacher } from '@app/database';
+import { Course, Group, GroupStudent, Lesson, Room, Schedule, Student, Teacher } from '@app/database';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { In, MoreThanOrEqual, Repository, SelectQueryBuilder } from 'typeorm';
+import { detectConflicts, ScheduleSlotLike } from '@app/common/domain';
+import { LessonStatus } from '@app/common/enums';
+import { toDateOnly } from '@app/common/utils';
 
 const SORTABLE = ['createdAt', 'name', 'startDate', 'endDate', 'status', 'monthlyFee'];
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
@@ -22,6 +25,8 @@ export class GroupsService {
     @InjectRepository(Teacher) private readonly teachers: Repository<Teacher>,
     @InjectRepository(Room) private readonly rooms: Repository<Room>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
+    @InjectRepository(Schedule) private readonly schedules: Repository<Schedule>,
+    @InjectRepository(Lesson) private readonly lessons: Repository<Lesson>,
     private readonly audit: AuditPublisher,
     private readonly rpc: RpcClientService,
   ) {}
@@ -111,6 +116,10 @@ export class GroupsService {
       }
     }
     const before = this.snapshot(group);
+    const teacherChanged = dto.teacherId !== undefined && dto.teacherId !== group.teacherId;
+    if (teacherChanged && dto.teacherId) {
+      await this.assertTeacherFree(group.id, dto.teacherId);
+    }
     Object.assign(group, {
       ...dto,
       teacherId: dto.teacherId === undefined ? group.teacherId : dto.teacherId,
@@ -120,6 +129,12 @@ export class GroupsService {
       description: dto.description === undefined ? group.description : dto.description,
     });
     const saved = await this.groups.save(group).catch(translateDatabaseError);
+    if (teacherChanged) {
+      await this.lessons.update(
+        { groupId: id, status: LessonStatus.PLANNED, date: MoreThanOrEqual(toDateOnly(new Date())) },
+        { teacherId: saved.teacherId },
+      );
+    }
     this.audit.publish(meta, AuditAction.UPDATE, 'Group', id, before, this.snapshot(saved));
     this.rpc.emit(EVENTS.GROUP_UPDATED, {
       groupId: id,
@@ -178,6 +193,38 @@ export class GroupsService {
     }
   }
 
+  private async assertTeacherFree(groupId: string, teacherId: string): Promise<void> {
+    const ownSlots = await this.schedules.find({ where: { groupId } });
+    if (ownSlots.length === 0) {
+      return;
+    }
+    const otherGroups = await this.groups.find({ where: { teacherId, status: In([GroupStatus.ACTIVE, GroupStatus.PAUSED]) }, select: { id: true } });
+    const otherGroupIds = otherGroups.map((other) => other.id).filter((otherId) => otherId !== groupId);
+    if (otherGroupIds.length === 0) {
+      return;
+    }
+    const otherSlots = await this.schedules.find({ where: { groupId: In(otherGroupIds) }, relations: { group: true } });
+    const toSlot = (slot: Schedule, slotTeacherId: string): ScheduleSlotLike => ({
+      id: slot.id,
+      groupId: slot.groupId,
+      roomId: null,
+      teacherId: slotTeacherId,
+      weekday: slot.weekday,
+      startTime: slot.startTime.slice(0, 5),
+      endTime: slot.endTime.slice(0, 5),
+      effectiveFrom: slot.effectiveFrom,
+      effectiveTo: slot.effectiveTo,
+    });
+    const existing = otherSlots.map((slot) => toSlot(slot, teacherId));
+    for (const slot of ownSlots) {
+      const conflicts = detectConflicts(toSlot(slot, teacherId), existing).filter((conflict) => conflict.kind === 'TEACHER');
+      if (conflicts.length > 0) {
+        const names = conflicts.map((conflict) => otherSlots.find((other) => other.id === conflict.scheduleId)?.group?.name ?? conflict.groupId);
+        throw new RpcBadRequestException(`Teacher is already busy at this time with ${[...new Set(names)].join(', ')}`);
+      }
+    }
+  }
+
   private async assertReferences(dto: Partial<CreateGroupDto>): Promise<void> {
     if (dto.teacherId) {
       const exists = await this.teachers.exist({ where: { id: dto.teacherId } });
@@ -204,6 +251,12 @@ export class GroupsService {
       capacity: group.capacity,
       status: group.status,
     };
+  }
+
+  assertNotStudent(meta: RequestMeta): void {
+    if (isStudentScoped(meta)) {
+      throw new RpcForbiddenException('Students cannot view this information');
+    }
   }
 
   assertStaffOnly(meta: RequestMeta): void {
