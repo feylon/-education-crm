@@ -53,9 +53,16 @@ describe('AuthService', () => {
       findOne: jest.fn(async ({ where }: { where: { tokenHash: string } }) =>
         stored.find((row) => row.tokenHash === where.tokenHash) ?? null,
       ),
-      update: jest.fn(async (id: string, patch: Record<string, unknown>) => {
-        const row = stored.find((item) => item.id === id);
-        if (row) Object.assign(row, patch);
+      update: jest.fn(async (criteria: string | Record<string, unknown>, patch: Record<string, unknown>) => {
+        const matches = (row: Record<string, unknown>) =>
+          typeof criteria === 'string'
+            ? row.id === criteria
+            : Object.entries(criteria).every(([key, value]) =>
+                value !== null && typeof value === 'object' && '_type' in (value as object) ? row[key] === null : row[key] === value,
+              );
+        const rows = stored.filter(matches);
+        for (const row of rows) Object.assign(row, patch);
+        return { affected: rows.length };
       }),
     };
     const teachers = { findOne: jest.fn().mockResolvedValue(null) };
@@ -99,8 +106,9 @@ describe('AuthService', () => {
     const refreshed = await service.refresh(login.refreshToken, {});
     expect(refreshed.refreshToken).not.toEqual(login.refreshToken);
     expect(stored[0].revokedAt).not.toBeNull();
-    await expect(service.refresh(login.refreshToken, {})).rejects.toBeInstanceOf(RpcUnauthorizedException);
-    await expect(service.refresh(refreshed.refreshToken, {})).resolves.toHaveProperty('accessToken');
+    await expect(service.refresh(login.refreshToken, {})).rejects.toThrow('reuse detected');
+    expect(stored.every((row) => row.revokedAt !== null)).toBe(true);
+    await expect(service.refresh(refreshed.refreshToken, {})).rejects.toBeInstanceOf(RpcUnauthorizedException);
   });
 
   it('rejects a refresh token signed with the wrong secret', async () => {

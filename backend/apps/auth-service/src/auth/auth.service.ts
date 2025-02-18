@@ -60,11 +60,18 @@ export class AuthService {
   async refresh(refreshToken: string, client: ClientInfo): Promise<TokenPair> {
     const payload = this.tokens.verifyRefresh(refreshToken);
     const stored = await this.refreshTokens.findOne({ where: { tokenHash: this.tokens.hash(refreshToken) } });
-    if (!stored || stored.revokedAt || stored.expiresAt.getTime() < Date.now() || stored.userId !== payload.sub) {
+    if (!stored || stored.expiresAt.getTime() < Date.now() || stored.userId !== payload.sub) {
+      throw new RpcUnauthorizedException('Refresh token is no longer valid');
+    }
+    if (stored.revokedAt) {
+      await this.refreshTokens.update({ userId: stored.userId, revokedAt: IsNull() }, { revokedAt: new Date() });
+      throw new RpcUnauthorizedException('Refresh token reuse detected, all sessions were revoked');
+    }
+    const rotated = await this.refreshTokens.update({ id: stored.id, revokedAt: IsNull() }, { revokedAt: new Date() });
+    if (!rotated.affected) {
       throw new RpcUnauthorizedException('Refresh token is no longer valid');
     }
     const user = await this.findActiveUser(payload.sub);
-    await this.refreshTokens.update(stored.id, { revokedAt: new Date() });
     return this.issueTokens(user, client);
   }
 
