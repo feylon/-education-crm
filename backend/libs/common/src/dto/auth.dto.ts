@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class LoginDto {
   @ApiProperty({ example: 'admin@crm.local' })
@@ -17,6 +17,13 @@ export class RefreshTokenDto {
   @IsString()
   @IsNotEmpty()
   refreshToken: string;
+}
+
+export class LogoutDto {
+  @ApiPropertyOptional({ description: 'Refresh token to revoke; omit to revoke every session' })
+  @IsOptional()
+  @IsString()
+  refreshToken?: string;
 }
 
 export class ChangePasswordDto {

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import { ArrayNotEmpty, IsArray, IsBoolean, IsEnum, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
 import { NotificationType } from '../enums';
 import { PaginationQueryDto } from './pagination-query.dto';
@@ -7,7 +7,7 @@ import { PaginationQueryDto } from './pagination-query.dto';
 export class NotificationQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ obj, key }) => obj[key] === true || obj[key] === 'true')
   @IsBoolean()
   unreadOnly?: boolean;
 

@@ -1,5 +1,5 @@
 import { AUTH_PATTERNS } from '@app/common/constants';
-import { ChangePasswordDto, LoginDto, RefreshTokenDto } from '@app/common/dto';
+import { ChangePasswordDto, LoginDto, LogoutDto, RefreshTokenDto } from '@app/common/dto';
 import { RequestMeta } from '@app/common/interfaces';
 import { RpcClientService } from '@app/common/rpc';
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
@@ -43,7 +43,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Revoke the given refresh token (or all tokens when omitted)' })
   @ApiOkEnvelope()
-  logout(@Body() dto: Partial<RefreshTokenDto>, @Meta() meta: RequestMeta) {
+  logout(@Body() dto: LogoutDto, @Meta() meta: RequestMeta) {
     return this.rpc.send(AUTH_PATTERNS.LOGOUT, { meta, data: { refreshToken: dto.refreshToken } });
   }
 

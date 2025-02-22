@@ -22,6 +22,7 @@ import { Response } from 'express';
 import { ApiOkEnvelope, Meta, Public, RequirePermissions } from '../../common';
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+const UPLOAD_LIMIT_BYTES = Number(process.env.MAX_FILE_SIZE_MB ?? 5) * 1024 * 1024;
 
 @ApiTags('Files')
 @Controller('files')
@@ -38,7 +39,7 @@ export class FilesController {
   @Post()
   @ApiBearerAuth()
   @RequirePermissions('files.upload')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: UPLOAD_LIMIT_BYTES, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {

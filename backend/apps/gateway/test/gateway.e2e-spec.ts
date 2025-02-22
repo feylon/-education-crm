@@ -87,6 +87,14 @@ describe('Gateway (e2e)', () => {
     );
   });
 
+  it('parses boolean query parameters literally', async () => {
+    rpc.send.mockResolvedValue({ items: [], meta: { page: 1, limit: 20, total: 0, totalPages: 1 } });
+    await request(app.getHttpServer()).get('/api/v1/users?isActive=false').set('Authorization', `Bearer ${tokenFor(['users.read'])}`);
+    expect(rpc.send).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ data: expect.objectContaining({ isActive: false }) }));
+    await request(app.getHttpServer()).get('/api/v1/users?isActive=true').set('Authorization', `Bearer ${tokenFor(['users.read'])}`);
+    expect(rpc.send).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ data: expect.objectContaining({ isActive: true }) }));
+  });
+
   it('SUPER_ADMIN bypasses permission checks', async () => {
     rpc.send.mockResolvedValue({ items: [], meta: { page: 1, limit: 20, total: 0, totalPages: 1 } });
     const response = await request(app.getHttpServer()).get('/api/v1/users').set('Authorization', `Bearer ${tokenFor([], ['SUPER_ADMIN'])}`);

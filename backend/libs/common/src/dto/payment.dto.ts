@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 import { InvoiceStatus, PaymentMethod, PaymentStatus } from '../enums';
 import { PaginationQueryDto } from './pagination-query.dto';
@@ -154,7 +154,7 @@ export class InvoiceQueryDto extends PaginationQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ obj, key }) => obj[key] === true || obj[key] === 'true')
   @IsBoolean()
   openOnly?: boolean;
 }

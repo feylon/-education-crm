@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
@@ -63,7 +63,7 @@ export class UserQueryDto extends PaginationQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ obj, key }) => obj[key] === true || obj[key] === 'true')
   @IsBoolean()
   isActive?: boolean;
 }
