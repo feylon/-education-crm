@@ -40,7 +40,7 @@ export const useAuthStore = defineStore('auth', () => {
         await authApi.logout(refreshToken);
       }
     } catch {
-      /* token may already be invalid */
+      tokenStorage.clear();
     } finally {
       tokenStorage.clear();
       user.value = null;

@@ -63,8 +63,14 @@ const refreshAccessToken = async (): Promise<string | null> => {
     const response = await axios.post<ApiEnvelope<TokenPair>>(`${baseURL}/auth/refresh`, { refreshToken });
     tokenStorage.set(response.data.data);
     return response.data.data.accessToken;
-  } catch {
-    tokenStorage.clear();
+  } catch (error) {
+    const rotatedElsewhere = tokenStorage.refresh !== refreshToken && tokenStorage.access;
+    if (rotatedElsewhere) {
+      return tokenStorage.access;
+    }
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      tokenStorage.clear();
+    }
     return null;
   }
 };
@@ -83,7 +89,9 @@ http.interceptors.response.use(
         original.headers.Authorization = `Bearer ${token}`;
         return http(original);
       }
-      onSessionExpired?.();
+      if (!tokenStorage.refresh) {
+        onSessionExpired?.();
+      }
     }
     if (error.response?.data) {
       throw new HttpError(error.response.data, error.message);

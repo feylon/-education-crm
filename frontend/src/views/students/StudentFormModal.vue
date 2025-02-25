@@ -151,7 +151,7 @@ const RELATION_OPTIONS = ['FATHER', 'MOTHER', 'PARENT', 'GUARDIAN', 'OTHER'].map
       <div class="span-2 photo">
         <AppAvatar :src="form.values.photoUrl || null" :name="`${form.values.firstName} ${form.values.lastName}`" :size="64" />
         <label class="photo__upload">
-          <input type="file" accept="image/*" hidden @change="onPhoto" />
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden @change="onPhoto" />
           <AppButton variant="outline" size="sm" icon="upload" :loading="uploading" type="button" @click="($event.currentTarget as HTMLElement).closest('label')?.querySelector('input')?.click()">
             {{ t('students.uploadPhoto') }}
           </AppButton>

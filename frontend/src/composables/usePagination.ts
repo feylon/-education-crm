@@ -10,8 +10,6 @@ export interface PaginationOptions<F extends Record<string, string | number | bo
   immediate?: boolean;
 }
 
-let debounceTimer: number | undefined;
-
 export const usePagination = <T, F extends Record<string, string | number | boolean | null | undefined> = Record<string, string | number | boolean | null | undefined>>(
   fetcher: (query: ListQuery) => Promise<Paginated<T>>,
   options: PaginationOptions<F> = {},
@@ -27,8 +25,11 @@ export const usePagination = <T, F extends Record<string, string | number | bool
   const filters = reactive({ ...(options.filters ?? {}) }) as F;
   const loading = ref(false);
   const error = ref<string | null>(null);
+  let debounceTimer: number | undefined;
+  let requestSeq = 0;
 
   const load = async (): Promise<void> => {
+    const seq = ++requestSeq;
     loading.value = true;
     error.value = null;
     try {
@@ -40,6 +41,9 @@ export const usePagination = <T, F extends Record<string, string | number | bool
         sortOrder: sortOrder.value,
         ...Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, value ?? undefined])),
       });
+      if (seq !== requestSeq) {
+        return;
+      }
       items.value = result.items;
       total.value = result.meta.total;
       totalPages.value = result.meta.totalPages;
@@ -47,9 +51,21 @@ export const usePagination = <T, F extends Record<string, string | number | bool
         page.value = result.meta.totalPages;
       }
     } catch (caught) {
-      error.value = errorMessage(caught);
+      if (seq === requestSeq) {
+        error.value = errorMessage(caught);
+      }
     } finally {
-      loading.value = false;
+      if (seq === requestSeq) {
+        loading.value = false;
+      }
+    }
+  };
+
+  const resetToFirstPage = (): void => {
+    if (page.value === 1) {
+      void load();
+    } else {
+      page.value = 1;
     }
   };
 
@@ -77,20 +93,10 @@ export const usePagination = <T, F extends Record<string, string | number | bool
   };
 
   watch([page, limit, sortBy, sortOrder], () => void load());
-  watch(
-    () => ({ ...filters }),
-    () => {
-      page.value = 1;
-      void load();
-    },
-    { deep: true },
-  );
+  watch(() => ({ ...filters }), resetToFirstPage, { deep: true });
   watch(search, () => {
     window.clearTimeout(debounceTimer);
-    debounceTimer = window.setTimeout(() => {
-      page.value = 1;
-      void load();
-    }, 350);
+    debounceTimer = window.setTimeout(resetToFirstPage, 350);
   });
 
   if (options.immediate !== false) {
