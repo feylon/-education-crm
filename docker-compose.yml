@@ -1,6 +1,7 @@
 x-backend-env: &backend-env
   NODE_ENV: ${NODE_ENV:-production}
   LOG_LEVEL: ${LOG_LEVEL:-log}
+  TZ: ${TZ:-Asia/Tashkent}
   POSTGRES_HOST: postgres
   POSTGRES_PORT: "5432"
   POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -82,6 +83,8 @@ services:
     environment:
       <<: *backend-env
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -101,7 +104,7 @@ services:
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-5}
     ports:
-      - "${GATEWAY_PORT:-3000}:3000"
+      - "${GATEWAY_BIND:-127.0.0.1}:${GATEWAY_PORT:-3000}:3000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/v1/health"]
       interval: 15s
