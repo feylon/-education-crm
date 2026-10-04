@@ -2,6 +2,8 @@
 
 ## Umumiy ko'rinish
 
+![Boshqaruv paneli](screenshots/02-dashboard.png)
+
 Education CRM ikki qismdan iborat: Vue 3 single-page ilova va API Gateway hamda Redis orqali muloqot
 qiluvchi o'n ikki mikroservisdan tashkil topgan NestJS backend. Barcha servislar umumiy TypeORM entity
 kutubxonasi orqali bitta PostgreSQL bazasidan foydalanadi; har bir jadvalga faqat bitta servis yozadi.
@@ -55,7 +57,8 @@ qabul qilinadi:
 - Biriktirish (`group_students`) chegirma foizini saqlaydi.
 - Invoyslar har bir faol biriktirish uchun har oy yaratiladi. Summa = to'lov × (1 − chegirma).
 - To'lovlar tanlangan invoysga yoki FIFO tartibida eng eski ochiq invoyslarga taqsimlanadi
-  (`payment_allocations`). Invoys holati: PENDING → PARTIALLY_PAID → PAID, muddat o'tgach OVERDUE.
+  (`payment_allocations`). Taqsimlanmay qolgan oldindan to'lov (kredit) yangi invoys yaratilganda
+  avtomatik qo'llanadi. Raqamlash va oylik generatsiya PostgreSQL advisory lock bilan himoyalangan. Invoys holati: PENDING → PARTIALLY_PAID → PAID, muddat o'tgach OVERDUE.
   Balans = to'lovlar − invoyslar; qarz = max(0, −balans).
 
 Sof biznes qoidalari (taqsimlash, holatni aniqlash, jadval to'qnashuvi, davomat yig'indisi)

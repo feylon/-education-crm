@@ -47,8 +47,10 @@ nusxa oling.
 | TELEGRAM_BOT_TOKEN | bo'sh | Bot API tokeni |
 | TELEGRAM_BOT_ENABLED | false | `true` bo'lsa polling boshlanadi |
 | SEED_DEMO_DATA | true | migrator: rollardan tashqari demo ma'lumotlarni ham seed qilish |
+| ADMIN_EMAIL / ADMIN_PASSWORD | bo'sh | migrator: berilsa va bunday foydalanuvchi bo'lmasa, SUPER_ADMIN rolli boshlang'ich administrator yaratiladi (parol kamida 8 belgi) |
 | NODE_ENV | development | development / production / test |
 | LOG_LEVEL | log | error / warn / log / debug / verbose |
+| TZ | Asia/Tashkent (compose) | konteyner vaqt zonasi — "bugun" hisob-kitoblari va cron joblar shu zonada ishlaydi |
 
 ## Frontend (build vaqtida)
 
@@ -57,6 +59,9 @@ nusxa oling.
 | VITE_API_BASE_URL | /api/v1 | API asosiy URL |
 | VITE_WS_URL | / | Socket.IO URL |
 | FRONTEND_PORT | 8080 | nginx konteynerining host porti (faqat compose) |
+| GATEWAY_BIND | 127.0.0.1 | gateway porti bog'lanadigan host interfeysi; tashqaridan to'g'ridan-to'g'ri kirish uchun `0.0.0.0` (compose) |
 
 Validatsiya: gateway va auth-service majburiy o'zgaruvchi yo'q yoki noto'g'ri bo'lsa ishga tushishda
 darhol to'xtaydi (`backend/libs/common/src/config/env.validation.ts` dagi Joi sxemalari).
+`NODE_ENV=production` da JWT secretlar kamida 32 belgi bo'lishi va `.env.example` dagi `change-me`
+qiymati bilan boshlanmasligi shart.

@@ -3,6 +3,8 @@
 Asosiy yo'l: `/api/v1`. Interaktiv hujjat: `/api/docs` (Bearer autentifikatsiyali Swagger UI),
 mashina o'qiydigan: `/api/docs-json`.
 
+![Swagger UI](screenshots/31-swagger.png)
+
 ## Qoidalar
 
 - Muvaffaqiyat: `{ "success": true, "statusCode": 200, "data": ... }`

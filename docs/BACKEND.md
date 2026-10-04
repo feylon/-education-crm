@@ -24,6 +24,8 @@ Entitylar, `DatabaseModule` (`TypeOrmModule.forRootAsync`), `buildDataSourceOpti
 
 ## Gateway
 
+![Swagger hujjati](screenshots/31-swagger.png)
+
 - `main.ts`: Helmet, CORS (`CORS_ORIGINS`), global prefiks `api/v1`, validation pipe (whitelist +
   transform), Swagger (`/api/docs`), hodisalarni iste'mol qilish uchun hybrid Redis mikroservis.
 - Global providerlar: `ThrottlerGuard`, `JwtAuthGuard` (`@Public()` ni o'tkazib yuboradi),

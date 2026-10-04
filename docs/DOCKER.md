@@ -40,7 +40,7 @@ ishlatadi. Har bir servisda health check bor (`3001` da `/health`; gateway `/api
 | Konteyner | Host port (sukut) | O'zgaruvchi |
 | --- | --- | --- |
 | frontend | 8080 | `FRONTEND_PORT` |
-| gateway | 3000 | `GATEWAY_PORT` |
+| gateway | 3000 (faqat `127.0.0.1`, `GATEWAY_BIND` bilan o'zgartiriladi) | `GATEWAY_PORT` |
 
 To'liq stek infratuzilma portlarini ochmaydi; PostgreSQL yoki Redis ga hostdan kirish kerak bo'lsa dev
 compose faylidan foydalaning.

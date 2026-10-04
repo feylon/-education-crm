@@ -23,6 +23,8 @@ npm run dev
 http://localhost:5173 ni oching va `admin@crm.local` / `Password123!` bilan kiring.
 Swagger: http://localhost:3000/api/docs.
 
+![Kirish sahifasidagi demo hisoblar](screenshots/01-login.png)
+
 ## Kundalik ish tartibi
 
 1. Entitylarni yarating yoki o'zgartiring → `npm run migration:generate -- libs/database/src/migrations/<Nomi>` →

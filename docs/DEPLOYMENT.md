@@ -10,10 +10,12 @@
 3. `docker compose build && docker compose up -d`.
 4. `frontend` (8080 port) oldiga TLS tugatuvchi reverse proxy (nginx, Caddy, Traefik) qo'ying. Frontend
    konteyneri `/api` va `/socket.io` ni gateway ga proxylaydi, shuning uchun bitta ommaviy port yetarli.
-5. Birinchi administratorni yarating: `SEED_DEMO_DATA=false` bo'lsa demo foydalanuvchilar bo'lmaydi;
-   toza bazada seedni demo ma'lumotlar bilan bir marta bajarib super admin parolini darhol o'zgartiring,
-   yoki vaqtinchalik demo super admin orqali `POST /users` bilan foydalanuvchi yarating va demo
-   hisoblarni o'chiring.
+5. Birinchi administratorni yarating: `.env` da `ADMIN_EMAIL` va `ADMIN_PASSWORD` ni bering — migrator
+   shu ma'lumotlar bilan SUPER_ADMIN rolli foydalanuvchini yaratadi (agar u hali mavjud bo'lmasa).
+   `SEED_DEMO_DATA=false` bo'lganda demo hisoblar yaratilmaydi.
+6. Gateway porti sukut bo'yicha faqat `127.0.0.1` ga bog'lanadi (`GATEWAY_BIND`); API ga tashqaridan
+   kirish frontend konteyneridagi nginx orqali bo'ladi, shuning uchun login rate limiti va audit IP
+   manzillari ishonchli bo'ladi.
 
 ## Yangilash
 

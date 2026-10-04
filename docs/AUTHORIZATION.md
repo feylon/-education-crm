@@ -19,6 +19,8 @@ notifications.read|send   reports.read   audit.read   files.upload
 
 ## Standart rollar
 
+![Rollar va ruxsatlar sahifasi](screenshots/22-roles.png)
+
 | Rol | Doira |
 | --- | --- |
 | SUPER_ADMIN | barcha ruxsatlar; guardda ruxsat tekshiruvini chetlab o'tadi |
@@ -29,9 +31,17 @@ notifications.read|send   reports.read   audit.read   files.upload
 | STUDENT | o'z guruhlari, jadvali, darslari, davomati, to'lovlari, invoyslari, bildirishnomalarini o'qish |
 
 Tizim rollarini qayta nomlash yoki o'chirish mumkin emas; `SUPER_ADMIN` ruxsatlari o'zgartirilmaydi.
-`SUPER_ADMIN` rolini faqat super admin biriktira oladi.
+`SUPER_ADMIN` rolini faqat super admin biriktira oladi, SUPER_ADMIN hisobini faqat boshqa super admin
+tahrirlashi yoki o'chirishi mumkin. Administrator tomonidan parol almashtirilganda foydalanuvchining
+barcha sessiyalari (refresh tokenlari) bekor qilinadi.
 
 ## Amalga oshirilishi
+
+O'qituvchi faqat o'z guruhlarini, o'quvchi faqat o'z ma'lumotlarini ko'radi:
+
+| O'qituvchi paneli | O'quvchi portali |
+| --- | --- |
+| ![O'qituvchi paneli](screenshots/27-teacher-dashboard.png) | ![O'quvchi portali](screenshots/28-student-portal.png) |
 
 1. **Gateway** — controller metodlaridagi `@RequirePermissions('students.read')` ni `PermissionsGuard`
    access tokendagi ruxsatlar bilan tekshiradi. `@RequireRoles(...)` ham mavjud. Ruxsat yo'q → standart

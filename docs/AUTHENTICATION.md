@@ -1,5 +1,7 @@
 # Autentifikatsiya
 
+![Kirish sahifasi](screenshots/01-login.png)
+
 ## Oqim
 
 ```text

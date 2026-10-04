@@ -44,8 +44,11 @@ Pattern va hodisa nomlari `libs/common/src/constants/{patterns,events}.ts` dagi 
 
 ## Telegram bot
 
+![Bildirishnomalar sahifasi](screenshots/20-notifications.png)
+
 `TELEGRAM_BOT_ENABLED=true` bo'lganda `notification-service` Telegram Bot API ni long polling qiladi.
-Buyruqlar: `/start` (kontakt tugmasi orqali telefon raqamini so'raydi; user, student va/yoki parent
+Buyruqlar: `/start` (kontakt tugmasi orqali telefon raqamini so'raydi; faqat yuboruvchining o'z kontakti
+qabul qilinadi — boshqa odamning kontaktini yuborish rad etiladi; user, student va/yoki parent
 yozuvlarini bog'laydi), `/status` (bog'langan har bir o'quvchi uchun hisoblangan, to'langan, qarz),
 `/unlink`, `/help`. Bog'langan chatli foydalanuvchiga yo'naltirilgan bildirishnomalar hamda o'quvchiga
 tegishli to'lov/invoys/davomat/qarz hodisalari bog'langan Telegram chatlarga (o'quvchi va ota-onalar)

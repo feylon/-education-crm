@@ -78,7 +78,15 @@ uni servislardan oldin ishga tushiradi.
 
 ## Seedlar
 
-- `rolesSeed` ruxsat katalogini va oltita standart rolni ularning ruxsatlari bilan upsert qiladi.
+Seed qilingan demo ma'lumotlar bilan guruh statistikasi va audit jurnali:
+
+| Guruh statistikasi | Audit jurnali |
+| --- | --- |
+| ![Guruh statistikasi](screenshots/10-group-statistics.png) | ![Audit jurnali](screenshots/24-audit-log.png) |
+
+- `rolesSeed` yetishmayotgan ruxsatlar va standart rollarni qo'shadi; mavjud rollarning ruxsatlari
+  qayta yozilmaydi (admin UI da qilgan o'zgarishlar saqlanadi), katalogga yangi qo'shilgan kodlar
+  SUPER_ADMIN ga beriladi. `ADMIN_EMAIL`/`ADMIN_PASSWORD` berilsa boshlang'ich super admin yaratiladi.
 - `demoSeed` demo xodimlar, uchta o'qituvchi, ota-onalari bilan o'n sakkizta o'quvchi, to'rt xonali
   filial, kategoriyalar va kurslar, haftalik slotlari bilan to'rtta guruh, so'nggi uch oy uchun darslar
   va davomat, invoyslar va to'lovlarni yaratadi. Idempotent — mavjud yozuvlarni o'tkazib yuboradi.

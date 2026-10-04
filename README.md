@@ -30,6 +30,38 @@ boshqaruv paneli hamda hisobotlarni boshqaradi. Interfeys o'zbek, ingliz va rus 
 - **Swagger** (`/api/docs`), **Docker Compose** bilan bitta buyruqda ishga tushirish, TypeORM
   migratsiyalari, idempotent seedlar.
 
+## Skrinshotlar
+
+Barcha sahifalarning rasmlari [docs/FRONTEND.md](docs/FRONTEND.md#skrinshotlar) da. Asosiylari:
+
+| Kirish sahifasi | Boshqaruv paneli |
+| --- | --- |
+| ![Kirish](docs/screenshots/01-login.png) | ![Boshqaruv paneli](docs/screenshots/02-dashboard.png) |
+
+| O'quvchilar ro'yxati | O'quvchi profili |
+| --- | --- |
+| ![O'quvchilar](docs/screenshots/03-students.png) | ![O'quvchi profili](docs/screenshots/04-student-detail.png) |
+
+| Guruh davomat jurnali | Dars jadvali (haftalik kalendar) |
+| --- | --- |
+| ![Jurnal](docs/screenshots/09-group-journal.png) | ![Dars jadvali](docs/screenshots/11-schedule.png) |
+
+| Davomat belgilash | To'lov qabul qilish |
+| --- | --- |
+| ![Davomat](docs/screenshots/13-attendance-mark.png) | ![To'lov](docs/screenshots/16-payment-form.png) |
+
+| Qarzdorlar | Hisobotlar |
+| --- | --- |
+| ![Qarzdorlar](docs/screenshots/18-debtors.png) | ![Hisobotlar](docs/screenshots/19-reports.png) |
+
+| O'qituvchi paneli | O'quvchi portali |
+| --- | --- |
+| ![O'qituvchi paneli](docs/screenshots/27-teacher-dashboard.png) | ![O'quvchi portali](docs/screenshots/28-student-portal.png) |
+
+| Swagger | Mobil ko'rinish |
+| --- | --- |
+| ![Swagger](docs/screenshots/31-swagger.png) | ![Mobil](docs/screenshots/29-mobile-students.png) |
+
 ## Texnologiyalar
 
 | Qatlam | Texnologiya |

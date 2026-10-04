@@ -2,6 +2,55 @@
 
 `frontend/` dagi Vue 3.4 + TypeScript + Vite 5 single-page ilova.
 
+## Skrinshotlar
+
+### Kirish va boshqaruv paneli
+![Kirish sahifasi](screenshots/01-login.png)
+![Boshqaruv paneli](screenshots/02-dashboard.png)
+![Boshqaruv paneli (rus tilida)](screenshots/26-dashboard-ru.png)
+
+### O'quvchilar va o'qituvchilar
+![O'quvchilar ro'yxati](screenshots/03-students.png)
+![O'quvchi profili](screenshots/04-student-detail.png)
+![O'qituvchilar](screenshots/05-teachers.png)
+![O'qituvchi paneli](screenshots/27-teacher-dashboard.png)
+
+### Kurslar va guruhlar
+![Kurslar va kategoriyalar](screenshots/06-courses.png)
+![Guruhlar](screenshots/07-groups.png)
+![Guruh sahifasi](screenshots/08-group-detail.png)
+![Guruh davomat jurnali](screenshots/09-group-journal.png)
+![Guruh statistikasi](screenshots/10-group-statistics.png)
+
+### Dars jadvali, darslar va davomat
+![Dars jadvali](screenshots/11-schedule.png)
+![Darslar](screenshots/12-lessons.png)
+![Davomat belgilash](screenshots/13-attendance-mark.png)
+![Davomat statistikasi](screenshots/14-attendance-stats.png)
+
+### Moliya
+![To'lovlar](screenshots/15-payments.png)
+![To'lov qabul qilish](screenshots/16-payment-form.png)
+![Invoyslar](screenshots/17-invoices.png)
+![Qarzdorlar](screenshots/18-debtors.png)
+![Hisobotlar](screenshots/19-reports.png)
+
+### Bildirishnomalar va sozlamalar
+![Bildirishnomalar](screenshots/20-notifications.png)
+![Foydalanuvchilar](screenshots/21-users.png)
+![Rollar va ruxsatlar](screenshots/22-roles.png)
+![Filiallar va xonalar](screenshots/23-branches-rooms.png)
+![Audit jurnali](screenshots/24-audit-log.png)
+![Profil](screenshots/25-profile.png)
+
+### O'quvchi portali
+![O'quvchi portali](screenshots/28-student-portal.png)
+
+### Mobil ko'rinish
+| Ro'yxat | Menyu |
+| --- | --- |
+| ![Mobil ro'yxat](screenshots/29-mobile-students.png) | ![Mobil menyu](screenshots/30-mobile-menu.png) |
+
 ## Qatlamlar
 
 | Papka | Mas'uliyat |
